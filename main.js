@@ -4,13 +4,13 @@ import { ARButton }
     from "three/addons/webxr/ARButton.js";
 
 import { OrbitControls }
-    from "three/addons/Controls/OrbitControls.js";
+    from "three/addons/controls/OrbitControls.js";
 
 import { GLTFLoader }
-    from "three/addons/utils/GLTFLoader.js";
+    from "three/addons/loaders/GLTFLoader.js";
 
 import { RGBELoader }
-    from "three/addons/Decor/RGBELoader.js";
+    from "three/addons/loaders/RGBELoader.js";
 
 
 // ======================================================
@@ -30,7 +30,7 @@ let envmap;
 
 let current_url = "1";
 
-// Variables pour le HIT-TEST WebXR
+// HIT TEST
 let hitTestSource = null;
 let hitTestSourceRequested = false;
 
@@ -89,11 +89,12 @@ function init() {
 
     renderer.xr.enabled = true;
 
+    renderer.outputColorSpace =
+        THREE.SRGBColorSpace;
+
     document
         .getElementById("container")
-        .appendChild(
-            renderer.domElement
-        );
+        .appendChild(renderer.domElement);
 
 
     // --------------------------------------------------
@@ -101,9 +102,7 @@ function init() {
     // --------------------------------------------------
 
     pmremGenerator =
-        new THREE.PMREMGenerator(
-            renderer
-        );
+        new THREE.PMREMGenerator(renderer);
 
     pmremGenerator.compileEquirectangularShader();
 
@@ -142,13 +141,15 @@ function init() {
 
     const directionalLight =
         new THREE.DirectionalLight(
-            0xdddddd,
-            1
+            0xffffff,
+            2
         );
 
-    directionalLight.position
-        .set(0, 0, 1)
-        .normalize();
+    directionalLight.position.set(
+        0,
+        5,
+        5
+    );
 
     scene.add(
         directionalLight
@@ -157,7 +158,8 @@ function init() {
 
     const ambientLight =
         new THREE.AmbientLight(
-            0x222222
+            0xffffff,
+            1
         );
 
     scene.add(
@@ -166,13 +168,13 @@ function init() {
 
 
     // --------------------------------------------------
-    // RETICLE
+    // RETICLE / CERCLE DE PLACEMENT
     // --------------------------------------------------
 
     const geometry =
         new THREE.RingGeometry(
-            0.15,
-            0.20,
+            0.12,
+            0.18,
             32
         );
 
@@ -182,7 +184,12 @@ function init() {
 
 
     const material =
-        new THREE.MeshBasicMaterial();
+        new THREE.MeshBasicMaterial({
+            color: 0x00ff00,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.9
+        });
 
 
     reticle =
@@ -191,8 +198,8 @@ function init() {
             material
         );
 
-    // La position du reticle sera
-    // donnée par le hit-test
+    // La position et la rotation
+    // viennent du hit-test
     reticle.matrixAutoUpdate = false;
 
     reticle.visible = false;
@@ -206,106 +213,57 @@ function init() {
     // CONFIGURATION AR
     // ==================================================
 
-    const options = {
+    const arOptions = {
 
         requiredFeatures: [
             "hit-test"
-        ]
+        ],
+
+        optionalFeatures: [
+            "dom-overlay"
+        ],
+
+        domOverlay: {
+            root: document.body
+        }
 
     };
 
 
-    document.body.appendChild(
+    const arButton =
         ARButton.createButton(
             renderer,
-            options
-        )
+            arOptions
+        );
+
+    document.body.appendChild(
+        arButton
     );
 
 
-    // --------------------------------------------------
-    // DEBUT DE SESSION AR
-    // --------------------------------------------------
+    // ==================================================
+    // SESSION AR START
+    // ==================================================
 
     renderer.xr.addEventListener(
         "sessionstart",
-        function () {
-
-            console.log(
-                "Session AR démarrée"
-            );
-
-
-            hitTestSource = null;
-
-            hitTestSourceRequested = false;
-
-
-            reticle.visible = false;
-
-
-            // Cacher le modèle au début
-            // de la session AR
-
-            if (current_object) {
-
-                current_object.visible =
-                    false;
-
-            }
-
-
-            // Récupération de la session
-            const session =
-                renderer.xr.getSession();
-
-
-            // Evénement SELECT
-            session.addEventListener(
-                "select",
-                onSelect
-            );
-
-        }
+        onSessionStart
     );
 
 
-    // --------------------------------------------------
-    // FIN DE SESSION AR
-    // --------------------------------------------------
+    // ==================================================
+    // SESSION AR END
+    // ==================================================
 
     renderer.xr.addEventListener(
         "sessionend",
-        function () {
-
-            console.log(
-                "Session AR terminée"
-            );
-
-
-            hitTestSource = null;
-
-            hitTestSourceRequested =
-                false;
-
-
-            reticle.visible = false;
-
-
-            if (current_object) {
-
-                current_object.visible =
-                    true;
-
-            }
-
-        }
+        onSessionEnd
     );
 
 
-    // --------------------------------------------------
+    // ==================================================
     // RESIZE
-    // --------------------------------------------------
+    // ==================================================
 
     window.addEventListener(
         "resize",
@@ -313,22 +271,122 @@ function init() {
     );
 
 
-    // --------------------------------------------------
+    // ==================================================
     // BOUCLE DE RENDU
-    // --------------------------------------------------
+    // ==================================================
 
     renderer.setAnimationLoop(
         render
     );
 
 
-    // --------------------------------------------------
+    // ==================================================
     // MODELE PAR DEFAUT
-    // --------------------------------------------------
+    // ==================================================
 
     loadModel(
         current_url
     );
+}
+
+
+// ======================================================
+// SESSION AR START
+// ======================================================
+
+function onSessionStart() {
+
+    console.log(
+        "=============================="
+    );
+
+    console.log(
+        "SESSION AR DEMARREE"
+    );
+
+    console.log(
+        "=============================="
+    );
+
+
+    // Reset hit test
+
+    hitTestSource = null;
+
+    hitTestSourceRequested = false;
+
+
+    // Cacher le cercle
+
+    reticle.visible = false;
+
+
+    // Cacher le modèle
+
+    if (current_object) {
+
+        current_object.visible = false;
+
+    }
+
+
+    // Récupérer la session
+
+    const session =
+        renderer.xr.getSession();
+
+
+    if (!session) {
+
+        console.error(
+            "Impossible de récupérer la session XR"
+        );
+
+        return;
+    }
+
+
+    // SELECT = toucher l'écran
+
+    session.addEventListener(
+        "select",
+        onSelect
+    );
+
+
+    console.log(
+        "Event SELECT installé"
+    );
+}
+
+
+// ======================================================
+// SESSION AR END
+// ======================================================
+
+function onSessionEnd() {
+
+    console.log(
+        "Session AR terminée"
+    );
+
+
+    hitTestSource = null;
+
+    hitTestSourceRequested = false;
+
+
+    reticle.visible = false;
+
+
+    // Remettre le modèle visible
+    // hors AR
+
+    if (current_object) {
+
+        current_object.visible = true;
+
+    }
 }
 
 
@@ -343,8 +401,8 @@ $(".ar-object").click(
             $(this).attr("id");
 
 
-        // On ne change pas le modèle
-        // pendant une session AR
+        // Ne pas changer de modèle
+        // pendant la session AR
 
         if (
             !renderer.xr.isPresenting
@@ -365,7 +423,6 @@ $(".ar-object").click(
             loadModel(
                 current_url
             );
-
         }
 
     }
@@ -373,7 +430,7 @@ $(".ar-object").click(
 
 
 // ======================================================
-// CHARGEMENT DU MODELE GLB
+// CHARGEMENT MODELE GLB
 // ======================================================
 
 function loadModel(model) {
@@ -386,7 +443,7 @@ function loadModel(model) {
 
 
     // --------------------------------------------------
-    // CHARGEMENT DU HDR
+    // CHARGEMENT HDR
     // --------------------------------------------------
 
     new RGBELoader()
@@ -395,7 +452,6 @@ function loadModel(model) {
             THREE.HalfFloatType
         )
 
-        // Ton HDR est à la racine
         .setPath("")
 
         .load(
@@ -409,7 +465,9 @@ function loadModel(model) {
                 );
 
 
-                // Création de l'environnement
+                // --------------------------------------------------
+                // ENVIRONMENT MAP
+                // --------------------------------------------------
 
                 envmap =
                     pmremGenerator
@@ -417,12 +475,6 @@ function loadModel(model) {
                             texture
                         )
                         .texture;
-
-
-                texture.flipY = false;
-
-                texture.premultiplyAlpha =
-                    false;
 
 
                 scene.environment =
@@ -433,7 +485,7 @@ function loadModel(model) {
 
 
                 // --------------------------------------------------
-                // CHARGEMENT DU GLB
+                // CHARGEMENT GLB
                 // --------------------------------------------------
 
                 const loader =
@@ -445,7 +497,6 @@ function loadModel(model) {
 
                     model + ".glb",
 
-
                     function (glb) {
 
                         console.log(
@@ -455,12 +506,26 @@ function loadModel(model) {
                         );
 
 
+                        // --------------------------------------------------
+                        // SUPPRIMER ANCIEN OBJET
+                        // --------------------------------------------------
+
+                        if (current_object) {
+
+                            scene.remove(
+                                current_object
+                            );
+
+                        }
+
+
+                        // --------------------------------------------------
+                        // NOUVEL OBJET
+                        // --------------------------------------------------
+
                         current_object =
                             glb.scene;
 
-
-                        // Ajouter l'objet
-                        // à la scène
 
                         scene.add(
                             current_object
@@ -468,7 +533,7 @@ function loadModel(model) {
 
 
                         // --------------------------------------------------
-                        // POSITION POUR LE MODE NAVIGATEUR
+                        // POSITION NAVIGATEUR
                         // --------------------------------------------------
 
                         current_object.position.set(
@@ -482,22 +547,44 @@ function loadModel(model) {
                         // CENTRAGE
                         // --------------------------------------------------
 
-                        const box = new THREE.Box3();
+                        const box =
+                            new THREE.Box3();
 
-                        box.setFromObject(current_object);
+                        box.setFromObject(
+                            current_object
+                        );
 
-                        box.getCenter(controls.target);
+
+                        const center =
+                            new THREE.Vector3();
+
+                        box.getCenter(
+                            center
+                        );
+
+
+                        controls.target.copy(
+                            center
+                        );
+
 
                         controls.update();
 
 
-                        // Affichage
+                        // --------------------------------------------------
+                        // VISIBLE
+                        // --------------------------------------------------
 
                         current_object.visible =
                             true;
 
 
                         render();
+
+
+                        console.log(
+                            "Modèle prêt"
+                        );
 
                     },
 
@@ -508,9 +595,7 @@ function loadModel(model) {
 
                     function (xhr) {
 
-                        if (
-                            xhr.total > 0
-                        ) {
+                        if (xhr.total > 0) {
 
                             const percent =
                                 (
@@ -537,7 +622,7 @@ function loadModel(model) {
                     function (error) {
 
                         console.error(
-                            "Erreur de chargement du GLB :",
+                            "Erreur GLB :",
                             error
                         );
 
@@ -558,7 +643,7 @@ function loadModel(model) {
             function (error) {
 
                 console.error(
-                    "Erreur de chargement du HDR :",
+                    "Erreur HDR :",
                     error
                 );
 
@@ -569,7 +654,7 @@ function loadModel(model) {
 
 
 // ======================================================
-// HIT-TEST
+// CREATION HIT TEST
 // ======================================================
 
 function setupHitTestSource() {
@@ -579,28 +664,48 @@ function setupHitTestSource() {
 
 
     if (!session) {
+
+        console.error(
+            "Pas de session XR"
+        );
+
         return;
     }
 
 
+    console.log(
+        "Création du Hit Test..."
+    );
+
+
     // --------------------------------------------------
-    // ESPACE "VIEWER"
+    // VIEWER SPACE
     // --------------------------------------------------
 
     session
         .requestReferenceSpace(
             "viewer"
         )
+
         .then(
-            function (referenceSpace) {
+            function (viewerSpace) {
+
+                console.log(
+                    "Viewer space obtenu"
+                );
+
 
                 return session
                     .requestHitTestSource({
-                        space: referenceSpace
+
+                        space:
+                            viewerSpace
+
                     });
 
             }
         )
+
         .then(
             function (source) {
 
@@ -609,16 +714,17 @@ function setupHitTestSource() {
 
 
                 console.log(
-                    "Hit-test activé"
+                    "✅ HIT TEST ACTIVÉ"
                 );
 
             }
         )
+
         .catch(
             function (error) {
 
                 console.error(
-                    "Erreur Hit-test :",
+                    "❌ ERREUR HIT TEST :",
                     error
                 );
 
@@ -627,7 +733,7 @@ function setupHitTestSource() {
 
 
     // --------------------------------------------------
-    // FIN DE SESSION
+    // FIN SESSION
     // --------------------------------------------------
 
     session.addEventListener(
@@ -646,44 +752,76 @@ function setupHitTestSource() {
 
 
 // ======================================================
-// SELECT
+// SELECT / TOUCH ECRAN
 // ======================================================
 
 function onSelect() {
 
     console.log(
-        "SELECT détecté"
+        "👆 SELECT / TOUCH"
     );
 
 
-    // Vérifier qu'on a un reticle
-    // et un objet
+    // Pas de surface
 
-    if (
-        reticle.visible &&
-        current_object
-    ) {
-
-        // Positionner l'objet
-        // à l'endroit du reticle
-
-        current_object.position
-            .setFromMatrixPosition(
-                reticle.matrix
-            );
-
-
-        // Afficher l'objet
-
-        current_object.visible =
-            true;
-
+    if (!reticle.visible) {
 
         console.log(
-            "Objet placé !"
+            "Pas de surface détectée"
         );
 
+        return;
     }
+
+
+    // Pas de modèle
+
+    if (!current_object) {
+
+        console.log(
+            "Aucun modèle chargé"
+        );
+
+        return;
+    }
+
+
+    // --------------------------------------------------
+    // RECUPERER POSITION DU RETICLE
+    // --------------------------------------------------
+
+    const position =
+        new THREE.Vector3();
+
+
+    position.setFromMatrixPosition(
+        reticle.matrix
+    );
+
+
+    // --------------------------------------------------
+    // PLACER LE MODELE
+    // --------------------------------------------------
+
+    current_object.position.copy(
+        position
+    );
+
+
+    // Afficher
+
+    current_object.visible =
+        true;
+
+
+    console.log(
+        "✅ OBJET PLACÉ"
+    );
+
+    console.log(
+        "Position :",
+        position
+    );
 }
 
 
@@ -710,7 +848,7 @@ function render(
 
 
         // --------------------------------------------------
-        // CREATION DU HIT-TEST
+        // CREER HIT TEST UNE SEULE FOIS
         // --------------------------------------------------
 
         if (
@@ -726,77 +864,71 @@ function render(
 
 
         // --------------------------------------------------
-        // RECUPERATION DE LA REFERENCE SPACE
+        // HIT TEST
         // --------------------------------------------------
 
-        if (
-            hitTestSource
-        ) {
+        if (hitTestSource) {
 
             const referenceSpace =
                 renderer.xr.getReferenceSpace();
 
 
-            // --------------------------------------------------
-            // RESULTATS DU HIT-TEST
-            // --------------------------------------------------
+            if (referenceSpace) {
 
-            const hitTestResults =
-                frame.getHitTestResults(
-                    hitTestSource
-                );
-
-
-            // --------------------------------------------------
-            // UNE SURFACE A ETE DETECTEE
-            // --------------------------------------------------
-
-            if (
-                hitTestResults.length > 0
-            ) {
-
-                const hit =
-                    hitTestResults[0];
-
-
-                const pose =
-                    hit.getPose(
-                        referenceSpace
+                const hitTestResults =
+                    frame.getHitTestResults(
+                        hitTestSource
                     );
 
 
-                if (pose) {
+                // --------------------------------------------------
+                // SURFACE DETECTEE
+                // --------------------------------------------------
 
-                    // Afficher le cercle
+                if (
+                    hitTestResults.length > 0
+                ) {
 
-                    reticle.visible =
-                        true;
-
-
-                    // Déplacer le cercle
-                    // vers la surface détectée
-
-                    reticle.matrix.fromArray(
-                        pose.transform.matrix
-                    );
+                    const hit =
+                        hitTestResults[0];
 
 
-                    console.log(
-                        "Surface détectée"
-                    );
+                    const pose =
+                        hit.getPose(
+                            referenceSpace
+                        );
+
+
+                    if (pose) {
+
+                        // Afficher le cercle
+
+                        reticle.visible =
+                            true;
+
+
+                        // Position + rotation
+
+                        reticle.matrix.fromArray(
+                            pose.transform.matrix
+                        );
+
+
+                    }
 
                 }
 
-            }
 
-            // --------------------------------------------------
-            // AUCUNE SURFACE
-            // --------------------------------------------------
+                // --------------------------------------------------
+                // AUCUNE SURFACE
+                // --------------------------------------------------
 
-            else {
+                else {
 
-                reticle.visible =
-                    false;
+                    reticle.visible =
+                        false;
+
+                }
 
             }
 
@@ -830,9 +962,8 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
 
 
-    // IMPORTANT :
-    // Ne pas utiliser setSize()
-    // pendant une session XR
+    // Ne pas modifier la taille
+    // pendant XR
 
     if (
         !renderer.xr.isPresenting
@@ -847,5 +978,10 @@ function onWindowResize() {
 }
 
 
-// ERUDA
-console.log("Bonjour depuis mon téléphone !");
+// ======================================================
+// DEBUG
+// ======================================================
+
+console.log(
+    "Three.js AR initialisé"
+);
