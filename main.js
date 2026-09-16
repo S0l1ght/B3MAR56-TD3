@@ -872,6 +872,11 @@ function render(
             const referenceSpace =
                 renderer.xr.getReferenceSpace();
 
+                console.log(
+    "Reference space :",
+    renderer.xr.getReferenceSpace()
+);
+
 
             if (referenceSpace) {
 
@@ -879,6 +884,11 @@ function render(
                     frame.getHitTestResults(
                         hitTestSource
                     );
+
+                console.log(
+                    "Nombre de surfaces détectées :",
+                    hitTestResults.length
+                );
 
 
                 // --------------------------------------------------
