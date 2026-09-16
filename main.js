@@ -482,19 +482,11 @@ function loadModel(model) {
                         // CENTRAGE
                         // --------------------------------------------------
 
-                        const box =
-                            new THREE.Box3();
+                        const box = new THREE.Box3();
 
+                        box.setFromObject(current_object);
 
-                        box.setFromObject(
-                            current_object
-                        );
-
-
-                        box.center(
-                            controls.target
-                        );
-
+                        box.getCenter(controls.target);
 
                         controls.update();
 
