@@ -853,3 +853,7 @@ function onWindowResize() {
 
     }
 }
+
+
+// ERUDA
+console.log("Bonjour depuis mon téléphone !");
