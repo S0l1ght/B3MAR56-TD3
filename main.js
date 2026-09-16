@@ -182,7 +182,10 @@ function init() {
 
 
     const material =
-        new THREE.MeshBasicMaterial();
+        new THREE.MeshBasicMaterial({
+            color: 0x00ff00,
+            side: THREE.DoubleSide
+        });
 
 
     reticle =
@@ -193,6 +196,7 @@ function init() {
 
     // La position du reticle sera
     // donnée par le hit-test
+
     reticle.matrixAutoUpdate = false;
 
     reticle.visible = false;
@@ -210,7 +214,15 @@ function init() {
 
         requiredFeatures: [
             "hit-test"
-        ]
+        ],
+
+        optionalFeatures: [
+            "dom-overlay"
+        ],
+
+        domOverlay: {
+            root: document.body
+        }
 
     };
 
@@ -232,7 +244,15 @@ function init() {
         function () {
 
             console.log(
+                "================================"
+            );
+
+            console.log(
                 "Session AR démarrée"
+            );
+
+            console.log(
+                "================================"
             );
 
 
@@ -256,14 +276,27 @@ function init() {
 
 
             // Récupération de la session
+
             const session =
                 renderer.xr.getSession();
 
 
+            console.log(
+                "Session XR :",
+                session
+            );
+
+
             // Evénement SELECT
+
             session.addEventListener(
                 "select",
                 onSelect
+            );
+
+
+            console.log(
+                "Event SELECT installé"
             );
 
         }
@@ -396,6 +429,7 @@ function loadModel(model) {
         )
 
         // Ton HDR est à la racine
+
         .setPath("")
 
         .load(
@@ -482,11 +516,19 @@ function loadModel(model) {
                         // CENTRAGE
                         // --------------------------------------------------
 
-                        const box = new THREE.Box3();
+                        const box =
+                            new THREE.Box3();
 
-                        box.setFromObject(current_object);
 
-                        box.getCenter(controls.target);
+                        box.setFromObject(
+                            current_object
+                        );
+
+
+                        box.getCenter(
+                            controls.target
+                        );
+
 
                         controls.update();
 
@@ -579,8 +621,18 @@ function setupHitTestSource() {
 
 
     if (!session) {
+
+        console.error(
+            "Pas de session XR pour le Hit-test"
+        );
+
         return;
     }
+
+
+    console.log(
+        "Création du Hit-test..."
+    );
 
 
     // --------------------------------------------------
@@ -593,6 +645,11 @@ function setupHitTestSource() {
         )
         .then(
             function (referenceSpace) {
+
+                console.log(
+                    "Reference space VIEWER obtenu"
+                );
+
 
                 return session
                     .requestHitTestSource({
@@ -609,7 +666,15 @@ function setupHitTestSource() {
 
 
                 console.log(
-                    "Hit-test activé"
+                    "================================"
+                );
+
+                console.log(
+                    "✅ HIT-TEST ACTIVÉ"
+                );
+
+                console.log(
+                    "================================"
                 );
 
             }
@@ -618,7 +683,7 @@ function setupHitTestSource() {
             function (error) {
 
                 console.error(
-                    "Erreur Hit-test :",
+                    "❌ ERREUR HIT-TEST :",
                     error
                 );
 
@@ -652,7 +717,35 @@ function setupHitTestSource() {
 function onSelect() {
 
     console.log(
+        "================================"
+    );
+
+    console.log(
         "SELECT détecté"
+    );
+
+    console.log(
+        "================================"
+    );
+
+
+    // --------------------------------------------------
+    // VERIFICATION RETICLE
+    // --------------------------------------------------
+
+    console.log(
+        "Reticle visible :",
+        reticle.visible
+    );
+
+
+    // --------------------------------------------------
+    // VERIFICATION OBJET
+    // --------------------------------------------------
+
+    console.log(
+        "Objet chargé :",
+        !!current_object
     );
 
 
@@ -680,8 +773,38 @@ function onSelect() {
 
 
         console.log(
-            "Objet placé !"
+            "✅ Objet placé !"
         );
+
+
+        console.log(
+            "Position objet :",
+            current_object.position
+        );
+
+    }
+
+    else {
+
+        console.log(
+            "❌ Impossible de placer l'objet"
+        );
+
+        if (!reticle.visible) {
+
+            console.log(
+                "Le reticle n'est pas visible"
+            );
+
+        }
+
+        if (!current_object) {
+
+            console.log(
+                "Aucun objet chargé"
+            );
+
+        }
 
     }
 }
@@ -737,68 +860,116 @@ function render(
                 renderer.xr.getReferenceSpace();
 
 
-            // --------------------------------------------------
-            // RESULTATS DU HIT-TEST
-            // --------------------------------------------------
+            console.log(
+                "Reference space XR :",
+                referenceSpace
+            );
 
-            const hitTestResults =
-                frame.getHitTestResults(
-                    hitTestSource
+
+            if (referenceSpace) {
+
+                // --------------------------------------------------
+                // RESULTATS DU HIT-TEST
+                // --------------------------------------------------
+
+                const hitTestResults =
+                    frame.getHitTestResults(
+                        hitTestSource
+                    );
+
+
+                // --------------------------------------------------
+                // DEBUG IMPORTANT
+                // --------------------------------------------------
+
+                console.log(
+                    "Nombre de surfaces détectées :",
+                    hitTestResults.length
                 );
 
 
-            // --------------------------------------------------
-            // UNE SURFACE A ETE DETECTEE
-            // --------------------------------------------------
+                // --------------------------------------------------
+                // UNE SURFACE A ETE DETECTEE
+                // --------------------------------------------------
 
-            if (
-                hitTestResults.length > 0
-            ) {
+                if (
+                    hitTestResults.length > 0
+                ) {
 
-                const hit =
-                    hitTestResults[0];
-
-
-                const pose =
-                    hit.getPose(
-                        referenceSpace
-                    );
+                    const hit =
+                        hitTestResults[0];
 
 
-                if (pose) {
+                    const pose =
+                        hit.getPose(
+                            referenceSpace
+                        );
 
-                    // Afficher le cercle
+
+                    if (pose) {
+
+                        console.log(
+                            "🟢 SURFACE DÉTECTÉE"
+                        );
+
+
+                        // Afficher le cercle
+
+                        reticle.visible =
+                            true;
+
+
+                        // Déplacer le cercle
+                        // vers la surface détectée
+
+                        reticle.matrix.fromArray(
+                            pose.transform.matrix
+                        );
+
+
+                    }
+
+                    else {
+
+                        console.log(
+                            "Pose impossible à récupérer"
+                        );
+
+                        reticle.visible =
+                            false;
+
+                    }
+
+                }
+
+                // --------------------------------------------------
+                // AUCUNE SURFACE
+                // --------------------------------------------------
+
+                else {
 
                     reticle.visible =
-                        true;
-
-
-                    // Déplacer le cercle
-                    // vers la surface détectée
-
-                    reticle.matrix.fromArray(
-                        pose.transform.matrix
-                    );
-
-
-                    console.log(
-                        "Surface détectée"
-                    );
+                        false;
 
                 }
 
             }
 
-            // --------------------------------------------------
-            // AUCUNE SURFACE
-            // --------------------------------------------------
-
             else {
 
-                reticle.visible =
-                    false;
+                console.log(
+                    "❌ Reference space XR indisponible"
+                );
 
             }
+
+        }
+
+        else {
+
+            console.log(
+                "⏳ Hit-test source pas encore disponible"
+            );
 
         }
 
@@ -847,5 +1018,10 @@ function onWindowResize() {
 }
 
 
+// ======================================================
 // ERUDA
-console.log("Bonjour depuis mon téléphone !");
+// ======================================================
+
+console.log(
+    "Bonjour depuis mon téléphone !"
+);
