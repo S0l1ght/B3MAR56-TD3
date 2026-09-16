@@ -1,171 +1,85 @@
 <!DOCTYPE html>
-<html lang="en">
-	<head>
-		<title>three.js ar - hit test</title>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-		<link type="text/css" rel="stylesheet" href="main.css">
-	</head>
-	<body>
+<html lang="fr">
 
-		<script type="importmap">
-			{
-				"imports": {
-					"three": "./build/three.module.js",
-					"three/addons/": "./jsm/"
-				}
-			}
-		</script>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
 
-		<script type="module">
+    <title>TD5 - AR 3D</title>
 
-			import * as THREE from 'three';
-			import { ARButton } from 'three/addons/webxr/ARButton.js';
+    <link rel="stylesheet" href="main.css">
 
-			let container;
-			let camera, scene, renderer;
-			let controller1, controller2;
+    <!-- JQuery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 
-			let reticle;
+    <!-- Import map Three.js -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "./build/three.module.js",
+            "three/addons/": "./jsm/"
+        }
+    }
+    </script>
+</head>
 
-			let hitTestSource = null;
-			let hitTestSourceRequested = false;
+<body>
 
-			init();
+    <div id="content">
 
-			function init() {
+        <!-- MENU LATERAL -->
+        <div id="mySidenav" class="sidenav">
 
-				container = document.createElement( 'div' );
-				document.body.appendChild( container );
+            <a href="javascript:void(0)"
+               class="closebtn"
+               onclick="closeNav()">
+                &times;
+            </a>
 
-				scene = new THREE.Scene();
+            <a class="ar-object" id="1" href="#">item_1</a>
+            <a class="ar-object" id="2" href="#">item_2</a>
+            <a class="ar-object" id="3" href="#">item_3</a>
+            <a class="ar-object" id="4" href="#">item_4</a>
 
-				camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 20 );
+        </div>
 
-				const light = new THREE.HemisphereLight( 0xffffff, 0xbbbbff, 3 );
-				light.position.set( 0.5, 1, 0.25 );
-				scene.add( light );
+        <!-- CONTENEUR THREE.JS -->
+        <div id="container"></div>
 
-				//
+        <!-- BOUTON POUR OUVRIR LE MENU -->
+        <span
+            style="
+                font-size:30px;
+                cursor:pointer;
+                position:absolute;
+                z-index:100;
+                top:10px;
+                left:10px;
+                color:black;
+            "
+            onclick="openNav()">
+            &#9776; open
+        </span>
 
-				renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } );
-				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( window.innerWidth, window.innerHeight );
-				renderer.setAnimationLoop( animate );
-				renderer.xr.enabled = true;
-				container.appendChild( renderer.domElement );
-
-				//
-
-				document.body.appendChild( ARButton.createButton( renderer, { requiredFeatures: [ 'hit-test' ] } ) );
-
-				//
-
-				const geometry = new THREE.CylinderGeometry( 0.1, 0.1, 0.2, 32 ).translate( 0, 0.1, 0 );
+    </div>
 
 
-				function onSelect() {
+    <script type="module" src="./main.js"></script>
 
-					if ( reticle.visible ) {
 
-						const material = new THREE.MeshPhongMaterial( { color: 0xffffff * Math.random() } );
-						const mesh = new THREE.Mesh( geometry, material );
-						reticle.matrix.decompose( mesh.position, mesh.quaternion, mesh.scale );
-						mesh.scale.y = Math.random() * 2 + 1;
-						scene.add( mesh );
+    <script>
 
-					}
+        function openNav() {
+            document.getElementById("mySidenav").style.width = "250px";
+        }
 
-				}
+        function closeNav() {
+            document.getElementById("mySidenav").style.width = "0";
+        }
 
-				controller1 = renderer.xr.getController( 0 );
-				controller1.addEventListener( 'select', onSelect );
-				scene.add( controller1 );
+    </script>
+    
 
-				controller2 = renderer.xr.getController( 1 );
-				controller2.addEventListener( 'select', onSelect );
-				scene.add( controller2 );
-
-				reticle = new THREE.Mesh(
-					new THREE.RingGeometry( 0.15, 0.2, 32 ).rotateX( - Math.PI / 2 ),
-					new THREE.MeshBasicMaterial()
-				);
-				reticle.matrixAutoUpdate = false;
-				reticle.visible = false;
-				scene.add( reticle );
-
-				//
-
-				window.addEventListener( 'resize', onWindowResize );
-
-			}
-
-			function onWindowResize() {
-
-				camera.aspect = window.innerWidth / window.innerHeight;
-				camera.updateProjectionMatrix();
-
-				renderer.setSize( window.innerWidth, window.innerHeight );
-
-			}
-
-			//
-
-			function animate( timestamp, frame ) {
-
-				if ( frame ) {
-
-					const referenceSpace = renderer.xr.getReferenceSpace();
-					const session = renderer.xr.getSession();
-
-					if ( hitTestSourceRequested === false ) {
-
-						session.requestReferenceSpace( 'viewer' ).then( function ( referenceSpace ) {
-
-							session.requestHitTestSource( { space: referenceSpace } ).then( function ( source ) {
-
-								hitTestSource = source;
-
-							} );
-
-						} );
-
-						session.addEventListener( 'end', function () {
-
-							hitTestSourceRequested = false;
-							hitTestSource = null;
-
-						} );
-
-						hitTestSourceRequested = true;
-
-					}
-
-					if ( hitTestSource ) {
-
-						const hitTestResults = frame.getHitTestResults( hitTestSource );
-
-						if ( hitTestResults.length ) {
-
-							const hit = hitTestResults[ 0 ];
-
-							reticle.visible = true;
-							reticle.matrix.fromArray( hit.getPose( referenceSpace ).transform.matrix );
-
-						} else {
-
-							reticle.visible = false;
-
-						}
-
-					}
-
-				}
-
-				renderer.render( scene, camera );
-
-			}
-
-		</script>
-	</body>
+</body>
 </html>
